@@ -1,0 +1,23 @@
+{
+    "login": {
+        "login_button": { "path": "//a[contains(@class, 'header__login')]", "type": "xpath" },
+        "email": { "path": "//input[@name='email']", "type": "xpath" },
+        "password": { "path": "//input[@name='password']", "type": "xpath" },
+        "submit_button": { "path": "//button[contains(@class, 'active') and contains(@class, 'btn-secondary') and contains(@class, 'btn-block')]", "type": "xpath" },
+        "allow_button": { "path": "//div[@id='btn-allow']", "type": "xpath" }
+    },
+    "game_entry": {
+        "download_button": { "path": "//a[contains(text(), 'İndir ve Oyna')]", "type": "xpath" },
+        "browser_play_header": { "path": "//div[@class='accordion__header']/span[text()='Tarayıcıdan Oyna']", "type": "xpath" },
+        "chrome_button": { "path": "//a[@title=\"Chrome'dan oyna\"]", "type": "xpath" },
+        "agree_continue_button": { "path": "//button[contains(@class, 'oobe-action-button') and contains(., 'Kabul Ediyorum ve Devam')]", "type": "xpath" },
+        "get_in_button": { "path": "//button[@id='getInButton' and contains(., 'KATILIN')]", "type": "xpath" },
+        "search_input": { "path": "/html/body/gfn-root/gfn-main-content/div/div/gfn-navigation/gfn-desktop-navigation/div/gfn-toolbar/nv-app-bar/div[3]/div[3]/div/nv-search/div/div/div/div/input", "type": "xpath" },
+        "banner_image": { "path": "//img[@elementtiming='gameTile' and contains(@src, 'TV_BANNER_01_30f9485a-0749-4150-b224-bf9f982434c5.jpg')]", "type": "xpath" }
+    },
+    "game_start": {
+        "start_button": { "path": "//button[contains(@class, 'mat-raised-button') and contains(., 'BAŞLA')]", "type": "xpath" }
+    },
+    "host_email": "mail",
+    "host_password": "password"
+}
