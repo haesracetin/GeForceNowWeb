@@ -1,0 +1,355 @@
+"""GeForce Now (Ghostrunner demo 2) Traffic Generation Module."""
+import time
+import json
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
+
+
+class WebDriverController:
+    """webdrivercontroller
+    """
+
+    def __init__(self, driver):
+        """Initializes the WebDriverController class.
+
+        Args:
+            driver (WebDriver): Selenium WebDriver instance.
+        """
+        self.driver = driver
+
+    def wait_until(self, by, value, timeout=10):
+        """Waits until the specified element is visible.
+
+        Args:
+            by (By): The method used to locate the element.
+            value (str): The value of the element to be located.
+            timeout (int): The waiting time (default: 10 seconds).
+
+        Returns:
+            WebElement: The visible element.
+        """
+        return WebDriverWait(self.driver, timeout).until(
+            EC.visibility_of_element_located((by, value))
+        )
+
+    def click(self, by, value):
+        """Clicks on the specified element.
+
+        Args:
+            by (By): The method used to locate the element.
+            value (str): The value of the element to be located.
+        """
+        element = self.wait_until(by, value)
+        if element:
+            try:
+                time.sleep(4)
+                element.click()
+            except Exception:
+                self.driver.execute_script("arguments[0].click();", element)
+                time.sleep(4)
+
+
+class GamePlus:
+    """GeForceNow Application Traffic Generator Class."""
+    def __init__(self, headless: bool = False, play_duration: int = 0):
+        """Initializes the GamePlus class.
+
+        Args:
+            headless (bool): Determines whether the browser runs in headless mode.
+            play_duration (int): Play duration (in seconds).
+        """
+        service = Service(r"./chromedriver.exe")
+        options = self.prepare_options(headless)
+        self.driver = webdriver.Chrome(service=service, options=options)
+        self.ui_controller = WebDriverController(self.driver)
+        self.play_duration = play_duration
+
+    def prepare_options(self, headless: bool = False) -> Options:
+        """Prepares browser options.
+
+        Args:
+            headless (bool): Determines whether the browser runs in headless mode.
+
+        Returns:
+            Options: The prepared browser options.
+        """
+        options = Options()
+        options.headless = headless
+        options.add_argument("--start-maximized")
+        options.add_argument("--disable-notifications")  # Disable notifications
+        options.add_argument("--disable-infobars")  # Disable info bars
+        # Disable pop-up blocker
+        options.add_argument("--disable-popup-blocking")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--window-size=1920,1080")
+
+        # Disable microphone and camera permissions
+        options.add_argument("--disable-application-cache")
+        # Use fake UI for microphone and camera
+        options.add_argument("--use-fake-ui-for-media-stream")
+        options.add_argument(
+            "--use-fake-device-for-media-stream")  # Use fake device
+        # Disable clipboard access (may not be fully effective)
+        options.add_argument("--disable-clipboard")
+
+        return options
+
+    def load_elements(self):
+        """Loads element information from the JSON file.
+
+        Returns:
+            dict: A dictionary containing loaded element information.
+
+        Raises:
+            ValueError: If the JSON file is empty.
+        """
+        with open(r'C:\Users\Esra Çetin\Desktop\Staj\ghostrunner.json', 'r', encoding='utf-8') as file:
+            content = file.read().strip()
+            if not content:
+                raise ValueError("The JSON file is empty.")
+            return json.loads(content)
+
+    def login(self, email, password):
+        """Logs in the user.
+
+        Args:
+            email (str): User's email.
+            password (str): User's password.
+        """
+        self.driver.get("https://gameplus.com.tr/")
+        elements = self.load_elements()
+
+        self.ui_controller.click(
+            By.XPATH, elements['login']['login_button']['path'])
+        self.ui_controller.wait_until(
+            By.XPATH, elements['login']['email']['path']).send_keys(email)
+        self.ui_controller.wait_until(
+            By.XPATH, elements['login']['password']['path']).send_keys(password)
+        self.ui_controller.click(
+            By.XPATH, elements['login']['submit_button']['path'])
+
+        time.sleep(2)
+        self.click_download_button()
+
+    def click_download_button(self):
+        """Clicks on the download button."""
+        elements = self.load_elements()
+        try:
+            download_button_xpath = elements['game_entry']['download_button']['path']
+            WebDriverWait(self.driver, 10).until(
+                EC.invisibility_of_element_located(
+                    (By.CSS_SELECTOR, "div[style*='fixed']"))
+            )
+
+            download_button = self.ui_controller.wait_until(
+                By.XPATH, download_button_xpath)
+            self.driver.execute_script(
+                "arguments[0].scrollIntoView(true);",
+                download_button)
+            self.ui_controller.click(By.XPATH, download_button_xpath)
+
+            self.driver.execute_script("window.scrollBy(0, 300);")
+            self.click_browser_play_header()
+            self.click_chrome_play()
+            self.click_get_in()
+        except Exception as e:
+            print("Error clicking download button:", str(e))
+
+    def click_browser_play_header(self):
+        """Clicks on the browser play header."""
+        elements = self.load_elements()
+        try:
+            browser_play_header_xpath = elements['game_entry']['browser_play_header']['path']
+            self.ui_controller.click(By.XPATH, browser_play_header_xpath)
+            print("Clicked browser play header.")
+        except Exception as e:
+            print("Error clicking browser play header:", str(e))
+
+    def click_chrome_play(self):
+        """Clicks on the Chrome play button."""
+        elements = self.load_elements()
+        try:
+            chrome_button_xpath = elements['game_entry']['chrome_button']['path']
+            self.ui_controller.click(By.XPATH, chrome_button_xpath)
+            print("Clicked Chrome play button.")
+            self.click_agree_continue()
+        except Exception as e:
+            print("Error clicking Chrome play button:", str(e))
+
+    def click_agree_continue(self):
+        """Clicks on the agree and continue button."""
+        elements = self.load_elements()
+        try:
+            agree_continue_button_xpath = elements['game_entry']['agree_continue_button']['path']
+            self.ui_controller.wait_until(By.XPATH, agree_continue_button_xpath)
+            self.ui_controller.click(By.XPATH, agree_continue_button_xpath)
+            print("Clicked agree and continue button.")
+        except Exception as e:
+            print("Error clicking agree and continue button:", str(e))
+
+    def click_get_in(self):
+        """Enters the game area."""
+        elements = self.load_elements()
+        try:
+            get_in_button_xpath = elements['game_entry']['get_in_button']['path']
+            self.ui_controller.wait_until(By.XPATH, get_in_button_xpath)
+            self.ui_controller.click(By.XPATH, get_in_button_xpath)
+            print("Clicked get in button.")
+            self.relogin()
+        except Exception as e:
+            print("Error clicking get in button:", str(e))
+
+    def relogin(self):
+        """Logs the user back in."""
+        elements = self.load_elements()
+        email = "mail"
+        password = "password"
+        try:
+            self.ui_controller.wait_until(
+                By.XPATH, elements['login']['email']['path']).send_keys(email)
+            self.ui_controller.wait_until(
+                By.XPATH, elements['login']['password']['path']).send_keys(password)
+            self.ui_controller.click(
+                By.XPATH, elements['login']['submit_button']['path'])
+            print("Relogged in.")
+            time.sleep(5)
+        except Exception as e:
+            print("Error during relogin:", str(e))
+
+    def search_game(self, game_name):
+        """Searches for the specified game.
+
+        Args:
+            game_name (str): The name of the game to search for.
+        """
+        elements = self.load_elements()
+        try:
+            search_input_xpath = elements['game_entry']['search_input']['path']
+            search_input = self.ui_controller.wait_until(
+                By.XPATH, search_input_xpath)
+            search_input.clear()
+            search_input.send_keys(game_name)
+            search_input.send_keys(u'\ue007')
+            print(f"Searched for '{game_name}'.")
+            self.click_banner_image()
+        except Exception as e:
+            print(f"Error during game search: {str(e)}")
+
+    def click_banner_image(self):
+        """Clicks on the banner image."""
+        elements = self.load_elements()
+        attempts = 3
+        for attempt in range(attempts):
+            try:
+                banner_image_xpath = elements['game_entry']['banner_image']['path']
+                WebDriverWait(
+                    self.driver, 10).until(
+                    EC.element_to_be_clickable(
+                        (By.XPATH, banner_image_xpath)))
+
+                banner_image = self.driver.find_element(
+                    By.XPATH, banner_image_xpath)
+                banner_image.click()
+
+                print("Clicked on the banner image.")
+                self.click_start_button()
+                break
+            except Exception as e:
+                print(
+                    f"Error clicking banner image (attempt {
+                        attempt +
+                        1}): {
+                        str(e)}")
+                if attempt < attempts - 1:
+                    time.sleep(2)
+                else:
+                    raise
+
+    def click_start_button(self):
+        """Clicks the start button and starts the game."""
+        elements = self.load_elements()
+        try:
+            start_button_xpath = elements['game_start']['start_button']['path']
+            self.ui_controller.wait_until(
+                By.XPATH, start_button_xpath, timeout=3600)
+            self.ui_controller.click(By.XPATH, start_button_xpath)
+            print("Clicked start button.")
+
+            time.sleep(40)
+            self.press_key_multiple_times('enter', 1, delay=5)
+            time.sleep(5)
+            self.press_key_multiple_times('enter', 4, delay=3)
+
+            time.sleep(60)
+
+            start_time = time.time()
+            while time.time() - start_time < self.play_duration:
+
+                self.press_key_multiple_times('w', 30, delay=0.1)
+                self.press_key_multiple_times('a', 30, delay=0.1)
+                self.press_key_multiple_times('s', 30, delay=0.1)
+                self.press_key_multiple_times('d', 30, delay=0.1)
+
+                time.sleep(1)
+
+            print("Game time is over. Closing the game...")
+            self.driver.quit()
+
+        except Exception as e:
+            print("Error clicking start button:", str(e))
+
+    def press_key_multiple_times(self, key, times, delay=4):
+        """Presses the specified key multiple times.
+
+        Args:
+            key (str): The name of the key to press ('enter', 'space', 'w', 'a', 's', 'd').
+            times (int): How many times to press the key.
+            delay (int): Delay between key presses (in seconds).
+        """
+        try:
+            body = self.driver.find_element(
+                By.TAG_NAME, 'body')  # Find the 'body' element to focus
+            key_map = {
+                'enter': Keys.RETURN,
+                'space': Keys.SPACE,
+                'w': 'w',  # 'W' key
+                'a': 'a',  # 'A' key
+                's': 's',  # 'S' key
+                'd': 'd'   # 'D' key
+            }
+            key_to_press = key_map.get(key, None)
+            if key_to_press is None:
+                print(f"Invalid key: {key}")
+                return
+
+            for _ in range(times):
+                body.send_keys(key_to_press)
+                print(f"Pressed '{key}' key.")
+                time.sleep(delay)
+        except Exception as e:
+            print(f"Error pressing '{key}' key: {str(e)}")
+
+
+if __name__ == "__main__":
+    headless = input(
+        "Run in headless mode? (yes/no): ").strip().lower() == 'yes'
+    play_duration_minutes = int(
+        input("How long do you want to play (in minutes)? "))
+    play_duration = play_duration_minutes * 60
+
+    game_plus = GamePlus(headless, play_duration)
+    game_plus.login("mail", "password")
+
+    try:
+        game_plus.search_game("ghostrunner 2 demo")
+
+    except KeyboardInterrupt:
+        print("Program is terminating...")
+    finally:
+        game_plus.driver.quit()
