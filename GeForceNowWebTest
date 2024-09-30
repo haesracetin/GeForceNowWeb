@@ -1,0 +1,146 @@
+"""Ghostrunner Traffic Detection Test."""
+import time
+import traceback
+from tee.brew import runner
+from tee.configs import ConfigManager
+import tee.brew.test_execution as te
+from tee.brew.test_attributes import TestCategory, TestPriority, TargetedSetupType
+from tee.framework.helpers.traffic_generation import GeForceNow
+from tee.framework.core import reporting
+import os
+
+reporting.debug_on_terminal = True
+
+TEST_ATTRIBUTES = {
+    "test_category": TestCategory.FUNCTIONAL,
+    "tested_feature": "DPI",
+    "test_priority": TestPriority.HIGH,
+    "targeted_setup_type": TargetedSetupType.ALL,
+    "jira_test_key": None,
+    "tested_repository": None
+}
+
+
+@runner.runnable
+def test(run_remote: bool = False, run_device: bool = False,
+         negative_scenario: bool = False, ee: te.TestExecution = None, **kwargs) -> bool:
+    """Starting Ghostrunner traffic and then checking gaming activity.
+
+    Args:
+        run_remote (bool, optional): Run test remotely. Defaults to False.
+        run_device (bool, optional): Run test on device. Defaults to False.
+        negative_scenario (bool, optional): Run negative scenario. Defaults to False.
+        ee (te.TestExecution, optional): Execution Environment. Defaults to None.
+
+    Returns:
+        bool: Result of the test.
+    """
+    ee.jira.test_key = "XWSQA-1254" if not run_device else None
+    reporter = ee.reporter
+    ghostrunner = GeForceNow(ee.setup)
+
+    reporter.debug("Configs for Ghostrunner are loaded")
+    config_path = r'C:\\Users\\Esra Çetin\\Desktop\\Staj\\ghostrunner.json'
+    configs = ConfigManager.load_config(config_path)  # Load configurations
+    ui_controller = ee.setup.master.functions.ui_controller
+    ui_controller.path_dictionary = configs
+
+    email = ghostrunner.host_email
+    password = ghostrunner.host_password
+
+    play_duration = kwargs.get("play_duration", 600)
+    time.sleep(5)
+
+    reporter.log(
+        f"Jira Execution: https://jira.airties.com/browse/{ee.jira.test_key}")
+    reporter.log("Starts Ghostrunner traffic in the background")
+
+    if run_device:
+        ee.setup.functions.start_collecting_console_logs()
+
+    if negative_scenario:
+        result_list = []
+        try:
+            filename_tcpdump = ghostrunner.start_tcpdump("eth0", "ghostrunner")
+            reporter.log("Starting Ghostrunner traffic in negative scenario...")
+            if not ghostrunner.start_traffic(
+                    ui_controller, headless=ghostrunner.headless, play_duration=play_duration):
+                reporter.success(
+                    "Ghostrunner traffic did not start as expected in negative scenario.")
+                result_list.append(True)
+            else:
+                reporter.failure(
+                    "Unexpected success in starting Ghostrunner traffic.")
+                result_list.append(False)
+        except Exception as exc:
+            reporter.debug(f"Exception occurred. Exception message: {exc}")
+            reporter.debug(traceback.format_exc())
+            ghostrunner.stop_tcpdump()
+            ghostrunner.stop_traffic(ui_controller)
+
+            if run_device:
+                ee.setup.functions.stop_collecting_console_logs()
+            ee.FAIL()
+
+        time.sleep(60)
+        file = os.path.realpath(filename_tcpdump)
+        ee.dashboard.upload_file(file)
+    else:
+        max_retries = 5
+        for retry_count in range(1, max_retries + 1):
+            result_list = []
+            try:
+                reporter.log(
+                    "Starting Ghostrunner traffic in positive scenario...")
+                filename_tcpdump = ghostrunner.start_tcpdump(
+                    "eth0", "ghostrunner")
+
+                if ghostrunner.start_traffic(
+                        ui_controller, headless=ghostrunner.headless, play_duration=play_duration):
+                    reporter.success(
+                        "Ghostrunner traffic started successfully.")
+                else:
+                    reporter.failure("Failed to start Ghostrunner traffic.")
+                    result_list.append(False)
+                    continue
+
+                time.sleep(play_duration)
+                ghostrunner.stop_tcpdump()
+                reporter.log("Stopping Ghostrunner traffic...")
+                ghostrunner.stop_traffic(ui_controller)
+                reporter.success("Ghostrunner traffic stopped successfully.")
+
+                result_list.append(True)
+                if all(result_list):
+                    break
+
+            except Exception as exc:
+                reporter.debug(f"Exception occurred. Retrying... Attempt {
+                               retry_count}. Exception message: {exc}")
+                reporter.debug(traceback.format_exc())
+                ghostrunner.stop_tcpdump()
+                ghostrunner.stop_traffic(ui_controller)
+                if run_device:
+                    ee.setup.functions.stop_collecting_console_logs()
+                if retry_count == max_retries:
+                    ee.FAIL()
+
+        time.sleep(60)
+        file = os.path.realpath(filename_tcpdump)
+        ee.dashboard.upload_file(file)
+
+    reporter.log("Stops DPI daemons in the background")
+    if not result_list:
+        result = False
+    else:
+        result = all(result_list)
+    _ = ee.PASS() if result else ee.FAIL()
+    reporter.log(
+        f"Ghostrunner Traffic ended, DPI dump active output check result is {result}")
+    if run_device:
+        ee.setup.functions.stop_collecting_console_logs()
+    return result
+
+
+if __name__ == '__main__':
+    test(play_duration=int(input("How many minutes do you want to play? ")))
